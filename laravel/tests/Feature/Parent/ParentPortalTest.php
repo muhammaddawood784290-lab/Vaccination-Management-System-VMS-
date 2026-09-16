@@ -326,14 +326,24 @@ class ParentPortalTest extends TestCase
 
     public function test_schedule_only_shows_own_children(): void
     {
-        $parentA = $this->createParent();
-        $parentB = $this->createParent();
-        $childB = $this->createChild($parentB);
+        // Deterministic names: assertDontSee is a substring check, and random faker
+        // names can collide (e.g. child "Gus" inside parent "Anabel Gusikowski"),
+        // which made this test flaky (~0.07%). No production scoping issue exists.
+        $parentA = User::factory()->create(['role' => 'parent', 'name' => 'Alice Parent']);
+        $parentB = User::factory()->create(['role' => 'parent', 'name' => 'Bob Parent']);
+
+        // Positive control: Parent A has a real schedule so we prove A's data renders...
+        $childA = Child::factory()->create(['user_id' => $parentA->id, 'name' => 'Alpha Child']);
+        // ...while Parent B's child must never appear.
+        $childB = Child::factory()->create(['user_id' => $parentB->id, 'name' => 'Zeta Child']);
+
         $vaccine = Vaccine::factory()->create();
+        VaccinationSchedule::create(['child_id' => $childA->id, 'vaccine_id' => $vaccine->id, 'dose_number' => 1, 'target_age' => '6 months', 'due_date' => now()->addDays(10), 'status' => 'due']);
         VaccinationSchedule::create(['child_id' => $childB->id, 'vaccine_id' => $vaccine->id, 'dose_number' => 1, 'target_age' => '6 months', 'due_date' => now()->addDays(30), 'status' => 'due']);
 
         $response = $this->actingAs($parentA)->get(route('parent.vaccinations.schedule'));
         $response->assertStatus(200);
+        $response->assertSee($childA->name);
         $response->assertDontSee($childB->name);
     }
 
