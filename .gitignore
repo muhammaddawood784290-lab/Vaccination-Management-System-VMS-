@@ -1,0 +1,5 @@
+# Local browser/session data
+laravel/cookies.txt
+
+# Local credentials / secrets
+docs/22-CREDENTIALS.md
